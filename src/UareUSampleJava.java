@@ -1,22 +1,9 @@
-import java.awt.Dimension;
+import com.digitalpersona.uareu.*;
+
+import javax.swing.*;
+import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.io.IOException;
-
-import javax.swing.Box;
-import javax.swing.BoxLayout;
-import javax.swing.JButton;
-import javax.swing.JDialog;
-import javax.swing.JLabel;
-import javax.swing.JOptionPane;
-import javax.swing.JPanel;
-import javax.swing.JTextArea;
-
-import com.digitalpersona.uareu.Fmd;
-import com.digitalpersona.uareu.Reader;
-import com.digitalpersona.uareu.ReaderCollection;
-import com.digitalpersona.uareu.UareUException;
-import com.digitalpersona.uareu.UareUGlobal;
 
 public class UareUSampleJava extends JPanel implements ActionListener {
 	private static final long serialVersionUID = 1;
@@ -162,7 +149,7 @@ public class UareUSampleJava extends JPanel implements ActionListener {
 		}
 	}
 
-	public static void main(String[] args) throws IOException {
+	public static void main(String[] args) {
 		// SwingUtilities.invokeLater(new WebcamViewerExample());
 		// createAndShowGUI();
 		try {
