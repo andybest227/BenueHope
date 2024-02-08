@@ -1,4 +1,7 @@
 import com.digitalpersona.uareu.*;
+import org.apache.log4j.BasicConfigurator;
+import org.apache.log4j.LogManager;
+import org.apache.log4j.PropertyConfigurator;
 
 import javax.swing.*;
 import java.awt.*;
@@ -150,9 +153,31 @@ public class UareUSampleJava extends JPanel implements ActionListener {
 	}
 
 	public static void main(String[] args) {
-		// SwingUtilities.invokeLater(new WebcamViewerExample());
-		// createAndShowGUI();
-		try {
+        // Initialize and display the main frame
+		String log4jConfPath = "src/log4j.properties";
+		PropertyConfigurator.configure(log4jConfPath);
+		Login login = new Login();
+		SplashScreen splashScreen = new SplashScreen();
+
+		splashScreen.setVisible(true);
+
+		try{
+			for (int i = 0; i <= 100; i++){
+				Thread.sleep(100);
+				splashScreen.percentage.setText("LOADING "+i +"%");
+				splashScreen.progressBar.setValue(i);
+				if (i==100){
+					login.setVisible(true);
+					splashScreen.setVisible(false);
+					splashScreen.dispose();
+				}
+			}
+		}catch (InterruptedException e){
+			e.printStackTrace();
+		}
+
+
+		/*try {
 			m_collection = UareUGlobal.GetReaderCollection();
 			m_collection.GetReaders();
 		} catch (UareUException e1) {
@@ -162,9 +187,7 @@ public class UareUSampleJava extends JPanel implements ActionListener {
 		}
 
 		m_reader = m_collection.get(0);
-
-		enrollmentFMD = Enrollment.Run(m_reader);
-
+		enrollmentFMD = NewEnrollment.Run(m_reader);*/
 	}
 
 }
