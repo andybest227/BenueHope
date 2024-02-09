@@ -12,6 +12,10 @@ import java.awt.*;
 import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URI;
+import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -39,13 +43,13 @@ public class Index extends JFrame {
     private final String FILE_PATH = "src/files/temporal_records.csv";
     private String username;
     // Column names
-    private final Object[] columnNames = {"NIN", "TITLE", "FIRST NAME", "MIDDLE NAME", "LAST NAME", "GENDER", "PHONE NUMBER", "LGA", "DATE CAPTURED"};
+    private final Object[] columnNames = {"NIN", "BVN", "FIRST NAME", "MIDDLE NAME", "LAST NAME", "GENDER", "PHONE NUMBER", "LGA", "DATE CAPTURED"};
     private final Object[][] data = readRecords(FILE_PATH);
     private JTable table;
     public Cloudinary cloudinary = new Cloudinary(ObjectUtils.asMap(
-            "cloud_name", "ds6x3023p",
-            "api_key", "966868569932862",
-            "api_secret", "D7BSrzAaG0paHzz1xKZ4wJD1NH4"
+            "cloud_name", "dsssjumkh",
+            "api_key", "819342592533741",
+            "api_secret", "B9Lyp1tcx6v5ippcAb_HJRsaQlQ"
     ));
 
     public Index(String mUsername){
@@ -213,24 +217,27 @@ public class Index extends JFrame {
         //bio data indicator
         uploadRecords = createIndicatorLabel("UPLOAD RECORD TO SERVER");
         uploadRecords.setBounds(30, 100, 200, 30);
+
         uploadRecords.addActionListener(e -> {
+            uploadRecords.setText("Uploading, please wait...");
+            uploadRecords.setEnabled(false);
             if (BioData.isInternetConnected()){
                 readAndDeleteRecords();
             }else{
                 JOptionPane.showMessageDialog(null, "No internet connection", "Error", JOptionPane.ERROR_MESSAGE);
+                uploadRecords.setText("UPLOAD RECORD TO SERVER");
+                uploadRecords.setEnabled(true);
             }
-
-           /* if (deletePendingRecords(FILE_PATH)){
-                DefaultTableModel model = (DefaultTableModel) table.getModel();
-                model.setRowCount(0);
-                model.addRow(new Object[]{"", "", "", "", "NO PENDING RECORD", "", "", "", ""});
-                uploadRecords.setEnabled(false);
-            }*/
         });
+
+        if (readRecords(FILE_PATH)[0][0] == ""){
+            uploadRecords.setEnabled(false);
+        }
 
         //biometrics indicator
         logOut = createIndicatorLabel("LOGOUT");
         logOut.setBounds(30, 150, 200, 30);
+        //logOut.addActionListener(e -> deletePendingRecords(FILE_PATH));
 
         sideNavHolder.add(newRecord);
         sideNavHolder.add(uploadRecords);
@@ -290,7 +297,7 @@ public class Index extends JFrame {
 
             // Check if records are present
             if (records.isEmpty()) {
-                return new Object[][]{{"NO PENDING RECORD","","","",""}};
+                return new Object[][]{{"","","","","NO PENDING RECORD","","","",""}};
             }
 
             // Create a 2D array with the size of the records
@@ -303,7 +310,7 @@ public class Index extends JFrame {
             return data;
         } catch (IOException e) {
             e.printStackTrace();
-            return new Object[][]{{"UNABLE TO READ RECORDS", "", "", "", ""}};
+            return new Object[][]{{"", "", "", "","UNABLE TO READ RECORDS", "", "", "", ""}};
         }
     }
 
@@ -330,21 +337,29 @@ public class Index extends JFrame {
         }
     }
 
+    private void refreshTableData (){
+        // Clear the current data in the table
+        DefaultTableModel model = (DefaultTableModel) table.getModel();
+        model.setRowCount(0);
+
+        // Add the new data to the table
+        addDataToTable(table, readRecords(FILE_PATH), columnNames);
+    }
+
     //Upload photo to cloudinary
-    private String cloudinary_photo_path(String path){
-        // Specify the local image path and desired public_id
-        String localImagePath = "src/icons/bn_logo.jpg";
-        String publicId = "42335154789562";
+    private String cloudinary_photo_path(String path, String publicId){
 
         // Upload the image
         Map uploadResult;
         try {
-            uploadResult = cloudinary.uploader().upload(localImagePath, ObjectUtils.asMap(
+            uploadResult = cloudinary.uploader().upload(path, ObjectUtils.asMap(
                     "public_id", publicId
             ));
             return (String) uploadResult.get("url");
         } catch (IOException e) {
-            JOptionPane.showMessageDialog(null, "Upload to upload record.", "Error", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(null, "Unable to establish connection with the server", "Error", JOptionPane.ERROR_MESSAGE);
+            uploadRecords.setText("UPLOAD RECORD TO SERVER");
+            uploadRecords.setEnabled(true);
             e.printStackTrace();
             return null;
         }
@@ -352,27 +367,23 @@ public class Index extends JFrame {
     }
 
     //Delete records from CSV file
-    public boolean deletePendingRecords(String FILE_PATH) {
-        boolean status = false;
+    public void deletePendingRecords(String FILE_PATH) {
         try(CSVWriter ignored = new CSVWriter(new FileWriter(FILE_PATH, false))){
             JOptionPane.showMessageDialog(null, "Upload completed successfully", "Success", JOptionPane.INFORMATION_MESSAGE);
-            status = true;
+            refreshTableData ();
         } catch (IOException e){
             JOptionPane.showMessageDialog(null, "An error occurred", "Error", JOptionPane.ERROR_MESSAGE);
             e.printStackTrace();
         }
-        return status;
     }
 
     //Push record to server
     private int uploadRecord(String[] records){
-        String cloudinaryImagePath = cloudinary_photo_path(records[37]);
+        String cloudinaryImagePath = cloudinary_photo_path(records[37], records[0]);
         if (cloudinaryImagePath == null){
             return 600;
         }
         try {
-
-            //URL url = new URL("https://portal.reavemsglobal.com/api/save-user");
             var url = new URI("https://bsscc.ng/api/save-citizens").toURL();
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setDoOutput(true);
@@ -382,24 +393,17 @@ public class Index extends JFrame {
             conn.setRequestProperty("User-Agent" , "Mozilla");
             String input = String.format(
                     "{\"NIN\":\"%s\",\"BVN\":\"%s\",\"title\":\"%s\",\"surname\":\"%s\",\"first_name\":\"%s\",\"middle_name\":\"%s\",\"gender\":\"%s\",\"phone_no\":\"%s\",\"email\":\"%s\",\"tribal_mark\":\"%s\",\"hair_colour\":\"%s\",\"hunch_back\":\"%s\",\"soo\":\"%s\",\"lga\":\"%s\",\"ward\":\"%s\",\"dob\":\"%s\",\"age\":\"%s\",\"marital_status\":\"%s\",\"number_of_children\":\"%s\",\"religion\":\"%s\",\"qualification\":\"%s\",\"profession_handwork\":\"%s\",\"is_pensioner\":\"%s\",\"pension_place\":\"%s\",\"disability\":\"%s\",\"nok_surname\":\"%s\",\"nok_firstname\":\"%s\",\"nok_middlename\":\"%s\",\"nok_relationship\":\"%s\",\"nok_phone\":\"%s\",\"bank\":\"%s\",\"account_name\":\"%s\",\"account_no\":\"%s\",\"longitude\":\"%s\",\"latitude\":\"%s\",\"photo\":\"%s\",\"fingerprint\":\"%s\",\"captured_by\":\"%s\",\"date_captured\":\"%s\"}",
-                    records[0], records[36], records[1], records[2], records[4], records[3], records[5], records[6], records[25], records[20], records[18], records[19], records[14], records[7], records[15], records[9], records[10], records[11], records[13], records[12], records[27], records[26], records[29], records[28], records[16], records[21], records[22], records[22], records[24], records[23], records[31], records[32], records[33], records[35], records[36], cloudinaryImagePath, records[38], records[39], records[8]
+                    records[0], records[1], records[36], records[2], records[4], records[3], records[5], records[6], records[25], records[20], records[18], records[19], records[14], records[7], records[15], records[9], records[10], records[11], records[13], records[12], records[27], records[26], records[29], records[28], records[16], records[21], records[22], records[22], records[24], records[23], records[31], records[32], records[33], records[35], records[36], cloudinaryImagePath, records[38], records[39], records[8]
             );
             OutputStream os = conn.getOutputStream();
             os.write(input.getBytes());
             os.flush();
             if(conn.getResponseCode() == 200){
-                //throw new RuntimeException("Failed:error code "+conn.getResponseCode());
-                //System.out.println("Response succeeded");
+                deleteImageFile(records[0]+".png");
                 return conn.getResponseCode();
             }else{
                 JOptionPane.showMessageDialog(null, "Operation failed!", "Error", JOptionPane.ERROR_MESSAGE);
             }
-           /* BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-            String output;
-            System.out.println("Response from API: ");
-            while ((output = br.readLine()) != null) {
-                System.out.println(output);
-            }*/
             conn.disconnect();
         } catch (Exception e) {
             e.printStackTrace();
@@ -424,6 +428,11 @@ public class Index extends JFrame {
                 }
 
             }
+            if(reader.readAll().size()<1){
+                JOptionPane.showMessageDialog(null, "Record uploaded successfully.", "Success", JOptionPane.INFORMATION_MESSAGE);
+                uploadRecords.setText("UPLOAD RECORD TO SERVER");
+                refreshTableData();
+            }
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -444,6 +453,19 @@ public class Index extends JFrame {
                 }
             }
         } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    //A method to delete image file after uploading
+    private void deleteImageFile(String fileName) {
+        Path filePath = Paths.get("src/files/photo_files", fileName);
+        try {
+            Files.delete(filePath);
+        } catch (NoSuchFileException e) {
+            System.err.println("File not found: " + filePath);
+        } catch (IOException e) {
+            System.err.println("Error deleting file: " + filePath);
             e.printStackTrace();
         }
     }

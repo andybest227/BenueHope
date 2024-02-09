@@ -40,12 +40,14 @@ public class Photograph extends JFrame {
     private WebcamPanel webcamPanel;
     private JButton captureButton;
     private String username;
+    private String biometricPath;
 
-    public Photograph(String ninNumberValue, String mUsername){
+    public Photograph(String ninNumberValue, String mUsername, String mBiometricPath){
 
         //ger values from constructor
         username = mUsername;
         ninValue = ninNumberValue;
+        biometricPath = mBiometricPath;
 
 
         gbc.fill = GridBagConstraints.HORIZONTAL;
@@ -312,7 +314,7 @@ private void captureImage() {
         webcam.close();
 
         JOptionPane.showMessageDialog(null, "Captured successfully.", "Success", JOptionPane.INFORMATION_MESSAGE);
-        new BioData(ninValue, "src/files/photo_files/"+ninValue+".png", "biometricPath", username).setVisible(true);
+        new BioData(ninValue, "src/files/photo_files/"+ninValue+".png", biometricPath, username).setVisible(true);
         dispose();
     } catch (Exception e) {
         JOptionPane.showMessageDialog(null, "An error occurred.", "Error", JOptionPane.ERROR_MESSAGE);

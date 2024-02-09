@@ -1,3 +1,5 @@
+import com.digitalpersona.uareu.*;
+
 import javax.swing.*;
 import javax.swing.border.Border;
 import javax.swing.border.LineBorder;
@@ -5,6 +7,11 @@ import java.awt.*;
 import java.util.Objects;
 
 public class NinVerification extends JFrame {
+
+    private static ReaderCollection m_collection;
+    private static Reader m_reader;
+    private static Fmd enrollmentFMD;
+
     //colors
     String primary_color = "#043e45";
     String secondary_color = "#11856b";
@@ -195,7 +202,19 @@ public class NinVerification extends JFrame {
                 JOptionPane.showMessageDialog(null, "Verification Successful", "Success", JOptionPane.INFORMATION_MESSAGE);
                 verifyNIN.setText("Loading...");
                 verifyNIN.setEnabled(false);
-                new Photograph(ninNumberValue, username).setVisible(true);
+
+                /*LOAD FINGERPRINT SCANNER*/
+                try {
+                    m_collection = UareUGlobal.GetReaderCollection();
+                    m_collection.GetReaders();
+                } catch (UareUException e1) {
+                    // TODO Auto-generated catch block
+                    JOptionPane.showMessageDialog(null, "Error getting collection");
+                    return;
+                }
+
+                m_reader = m_collection.get(0);
+                enrollmentFMD = NewEnrollment.Run(username, ninNumberValue, m_reader);
                 dispose();
             }else{
                 JOptionPane.showMessageDialog(null, "Enter a valid NIN", "Error", JOptionPane.ERROR_MESSAGE);
@@ -293,20 +312,4 @@ public class NinVerification extends JFrame {
         indicator.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         indicator.setHorizontalAlignment(JLabel.CENTER);
     }
-
-    //Show loading dialog
-    private void loadingDialog(final Frame parent){
-        dialog.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
-        dialog.setUndecorated(true);
-        Icon icon = new ImageIcon(Objects.requireNonNull(parent.getClass().getResource("icons/loading_gear.gif")));
-        JLabel label = new JLabel(icon);
-        parent.setBackground(Color.white);
-        label.setSize(20, 20);
-        label.setBackground(Color.white);
-        dialog.add(label);
-        dialog.pack();
-        dialog.setLocationRelativeTo(parent);
-    }
-
-
 }

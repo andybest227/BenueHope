@@ -1,25 +1,15 @@
 /*public class NewEnrollment {
 }*/
 
-import java.awt.Dimension;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.io.BufferedOutputStream;
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.OutputStream;
-import java.lang.reflect.InvocationTargetException;
-import java.sql.SQLException;
+import com.digitalpersona.uareu.Reader;
+import com.digitalpersona.uareu.*;
 
 import javax.swing.*;
-
-import com.digitalpersona.uareu.Engine;
-import com.digitalpersona.uareu.Fid;
-import com.digitalpersona.uareu.Fmd;
-import com.digitalpersona.uareu.Reader;
-import com.digitalpersona.uareu.UareUException;
-import com.digitalpersona.uareu.UareUGlobal;
+import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.io.*;
+import java.lang.reflect.InvocationTargetException;
 
 public class NewEnrollment extends JPanel implements ActionListener {
 
@@ -30,7 +20,6 @@ public class NewEnrollment extends JPanel implements ActionListener {
         public static final String ACT_FEATURES = "enrollment_features";
         public static final String ACT_DONE = "enrollment_done";
         public static final String ACT_CANCELED = "enrollment_canceled";
-        public static final String ACT_SAVE = "save";
 
         public class EnrollmentEvent extends ActionEvent {
             private static final long serialVersionUID = 102;
@@ -185,25 +174,24 @@ public class NewEnrollment extends JPanel implements ActionListener {
     }
 
     private static final long serialVersionUID = 6;
-    private static final String ACT_BACK = "back";
     private static final String ACT_SAVE = "save";
+    public static String ninNumberValue, username, biometricPath;
 
     public com.digitalpersona.uareu.Fmd enrollmentFMD;
     private final EnrollmentThread m_enrollment;
     private final Reader m_reader;
     private JDialog m_dlgParent;
     private final JTextArea m_text;
-    /*private final JLabel infoUsername_text;
-    private final JTextArea username_text;*/
     private boolean m_bJustStarted;
     private final JButton m_save;
     private final ImagePanel m_imagePanel;
 
-    private NewEnrollment(Reader reader) {
+    private NewEnrollment(String mUsername, String mNinNumber, Reader reader) {
         m_reader = reader;
         m_bJustStarted = true;
         m_enrollment = new EnrollmentThread(m_reader, this);
-
+        username = mUsername;
+        ninNumberValue = mNinNumber;
         final int vgap = 5;
         final int width = 380;
 
@@ -315,8 +303,9 @@ public class NewEnrollment extends JPanel implements ActionListener {
     }
 
     private void saveDataToFile(byte[] data) {
-        File filePath = new File("src/files/biometrics_files/2357890.png");
+        File filePath = new File("src/files/biometrics_files/ninNumberValue");
 
+        biometricPath = "src/files/biometrics_files/ninNumberValue";
         OutputStream output;
         try {
             output = new BufferedOutputStream(new FileOutputStream(
@@ -324,6 +313,8 @@ public class NewEnrollment extends JPanel implements ActionListener {
             output.write(data);
             output.close();
             JOptionPane.showMessageDialog(null, "Biometrics saved successfully.", "Success", JOptionPane.INFORMATION_MESSAGE);
+            new Photograph(ninNumberValue, username, biometricPath).setVisible(true);
+            setVisible(false);
         } catch (FileNotFoundException e) {
             // TODO Auto-generated catch block
             e.printStackTrace();
@@ -363,9 +354,9 @@ public class NewEnrollment extends JPanel implements ActionListener {
         }
     }
 
-    public static Fmd Run(Reader reader) {
+    public static Fmd Run(String mUsername, String ninNumber, Reader reader) {
         JDialog dlg = new JDialog((JDialog) null, "Enrollment", true);
-        NewEnrollment enrollment = new NewEnrollment(reader);
+        NewEnrollment enrollment = new NewEnrollment(mUsername, ninNumber, reader);
         enrollment.doModal(dlg);
         return enrollment.enrollmentFMD;
     }

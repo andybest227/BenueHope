@@ -2200,9 +2200,9 @@ public class BioData extends JFrame {
 
         String[] getCoordinate = {generateRandomDouble(), generateRandomDouble()};
 
-        return new String[]{nin, cTitle, fName, mName, lName, sex, phone, cLga, formattedDate, dob, age, maritalStatus, cReligion, nOfChildren,
+        return new String[]{nin, cBvn, fName, mName, lName, sex, phone, cLga, formattedDate, dob, age, maritalStatus, cReligion, nOfChildren,
                 cState, cWard, dStatus, disability,hairColor, hunch, tMark, nokfName, nokoNames, nokPhone, nokRel,
-        email, prof, qual, address, pensionStatus, pensionPlace, bank, acctName, acctNo, cBvn, getCoordinate[0], getCoordinate[1], cPhotoPath, cBiometricPath, mUsername};
+        email, prof, qual, address, pensionStatus, pensionPlace, bank, acctName, acctNo, cTitle, getCoordinate[0], getCoordinate[1], cPhotoPath, cBiometricPath, mUsername};
     }
 
     /*WRITE RECORD TO THE CSV FILE*/
