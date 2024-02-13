@@ -38,14 +38,17 @@ public class BioData extends JFrame {
 
     private final Map<String, String[]> localGovernmentsMap, wardsMap;
 
-    private JComboBox<String> title, stateComboBox, gender, mStatus, nokRelationship, religion,colorOfHair,tribalMark, localGovernmentComboBox, wardsComboBox, statusComboBox, disabilityComboBox, qualification, bankName;
-    private JTextFieldPlaceholder firstName, middle_name, last_name, no_children, phone_number, email_address, hunchback,nonFirstName, nonOtherNames,nonPhone, profession, placeOfPensionTextField;
+    private JComboBox<String> title, stateComboBox, gender, mStatus, nokRelationship, religion,colorOfHair,tribalMark, hunchback, localGovernmentComboBox, wardsComboBox, statusComboBox, disabilityComboBox, qualification, bankName;
+    private JTextFieldPlaceholder firstName, middle_name, last_name, no_children, phone_number, email_address, nonFirstName, nonOtherNames,nonPhone, profession, placeOfPensionTextField;
     private JDatePickerImpl datePicker;
     private JTextAreaPlaceholder contactAddress;
     private ButtonGroup buttonGroup;
     private JTextFieldPlaceholder accountNumber,accountName, bvn;
     private final String cPhotoPath, cBiometricPath, nin, mUsername;
     private final String FILE_PATH = "src/files/temporal_records.csv";
+
+    private final CustomDialog dialog = new CustomDialog("Verifying BVN status...", Color.ORANGE);
+    private SwingWorker<Void, Void> worker;
 
 
     private final CardLayout cardLayout = new CardLayout();
@@ -301,12 +304,10 @@ public class BioData extends JFrame {
         bio_dataPane.add(colorOfHair, gbc);
 
         //Hunchback
-        hunchback = new JTextFieldPlaceholder();
-        hunchback.setPlaceholder("HUNCHBACK");
+        hunchback = new JComboBox<>(new String[]{"-hunchback-", "NO", "YES"});
         hunchback.setBorder(lineBorder);
         hunchback.setSize(300,50);
         hunchback.setBorder(lineBorder);
-        hunchback.setBorder(BorderFactory.createCompoundBorder(hunchback.getBorder(), BorderFactory.createEmptyBorder(3,3,3,3)));
         gbc.gridx = 2;
         bio_dataPane.add(hunchback, gbc);
 
@@ -677,17 +678,17 @@ public class BioData extends JFrame {
         ninDataIndicator = createIndicatorLabel("NIN VERIFICATION");
         ninDataIndicator.setBounds(30, 50, 200, 30);
 
-        //bio data indicator
-        bioDataIndicator = createIndicatorLabel("BIO-DATA");
-        bioDataIndicator.setBounds(30, 100, 200, 30);
-
         //biometrics indicator
         biometricDataIndicator = createIndicatorLabel("BIOMETRICS");
-        biometricDataIndicator.setBounds(30, 150, 200, 30);
+        biometricDataIndicator.setBounds(30, 100, 200, 30);
 
         //photograph indicator
         photoDataIndicator = createIndicatorLabel("PHOTOGRAPH");
-        photoDataIndicator.setBounds(30, 200, 200, 30);
+        photoDataIndicator.setBounds(30, 150, 200, 30);
+
+        //bio data indicator
+        bioDataIndicator = createIndicatorLabel("PERSONAL INFORMATION");
+        bioDataIndicator.setBounds(30, 200, 200, 30);
 
         //summary indicator
         summaryDataIndicator = createIndicatorLabel("SUMMARY");
@@ -698,14 +699,14 @@ public class BioData extends JFrame {
         printDataIndicator.setBounds(30, 300, 200, 30);
 
         sideNavHolder.add(ninDataIndicator);
-        sideNavHolder.add(bioDataIndicator);
         sideNavHolder.add(biometricDataIndicator);
         sideNavHolder.add(photoDataIndicator);
+        sideNavHolder.add(bioDataIndicator);
         sideNavHolder.add(summaryDataIndicator);
         sideNavHolder.add(printDataIndicator);
 
         //Collect all indicator
-        JLabel[] indicators = {ninDataIndicator, bioDataIndicator, biometricDataIndicator, photoDataIndicator, summaryDataIndicator, printDataIndicator};
+        JLabel[] indicators = {ninDataIndicator, biometricDataIndicator, photoDataIndicator, bioDataIndicator, summaryDataIndicator, printDataIndicator};
 
         //Save and continue button
         submit_btn.setBorder(null);
@@ -716,10 +717,29 @@ public class BioData extends JFrame {
 
         //Add listener to save and continue button
         submit_btn.addActionListener(e -> {
-            if (writeRecord(getDetails())){
-                JOptionPane.showMessageDialog(null, "Submitted Successfully.", "Success", JOptionPane.INFORMATION_MESSAGE);
-                new Index(mUsername).setVisible(true);
-                dispose();
+            String mBvn = bvn.getText();
+            //Verify BVN and proceed
+            if (InternetConnection.isInternetConnected()){
+                dialog.setVisible(true);
+                submit_btn.setText("Processing...");
+                submit_btn.setEnabled(false);
+                worker = new SwingWorker<>() {
+                    @Override
+                    protected Void doInBackground() {
+                        verifyBvn(mBvn);
+                        return null;
+                    }
+                    @Override
+                    protected void done() {
+                        //JOptionPane.showMessageDialog(null, "Task completed!");
+                        submit_btn.setText("SUBMIT");
+                        submit_btn.setEnabled(true);
+                        dialog.dispose();
+                    }
+                };
+                worker.execute();
+            }else{
+                JOptionPane.showMessageDialog(null, "Review your Internet connection", "Error", JOptionPane.ERROR_MESSAGE);
             }
         });
 
@@ -743,6 +763,8 @@ public class BioData extends JFrame {
         add(homePanel);
         activateIndicator(indicators[0]);
         activateIndicator(indicators[1]);
+        activateIndicator(indicators[2]);
+        activateIndicator(indicators[3]);
     }
 
     private void updateLocalGovernmentComboBox(String selectedState) {
@@ -2045,10 +2067,12 @@ public class BioData extends JFrame {
 
         // Calculate age
         int intAge = calculateAge(localDate);
+        //Check age range
+        if(intAge < 65){
+            JOptionPane.showMessageDialog(null, "Citizen's age must be from 65 and above.", "Warning", JOptionPane.WARNING_MESSAGE);
+            return new String[0];
+        }
         String age = String.valueOf(intAge);
-
-
-
 
         String nOfChildren = no_children.getText();
         if(nOfChildren.isEmpty()){
@@ -2063,9 +2087,10 @@ public class BioData extends JFrame {
             return new String[0];
         }
 
-        String hunch = hunchback.getText().toUpperCase(Locale.ROOT);
-        if(hunch.isEmpty() || hunch.length()<2){
-            JOptionPane.showMessageDialog(null, "Invalid entry for Hunchback.", "Warning", JOptionPane.WARNING_MESSAGE);
+        String hunch = (String) hunchback.getSelectedItem();
+        assert  hunch != null;
+        if(hunch.equals("-hunchback-")){
+            JOptionPane.showMessageDialog(null, "Select Hunchback.", "Warning", JOptionPane.WARNING_MESSAGE);
             return new String[0];
         }
 
@@ -2206,7 +2231,8 @@ public class BioData extends JFrame {
     }
 
     /*WRITE RECORD TO THE CSV FILE*/
-    private boolean writeRecord(String[] citizenDetails){
+    private boolean writeRecord(){
+        String[] citizenDetails = getDetails();
         boolean status = false;
         if (citizenDetails.length==0){
             return false;
@@ -2215,8 +2241,7 @@ public class BioData extends JFrame {
             writer.writeNext(citizenDetails);
             status = true;
         }catch (IOException e){
-            JOptionPane.showMessageDialog(null, "Unable to submit record.", "Error", JOptionPane.WARNING_MESSAGE);
-            e.printStackTrace();
+           e.printStackTrace();
         }
         return status;
     }
@@ -2238,14 +2263,51 @@ public class BioData extends JFrame {
         return  String.valueOf(integerPart+decimalPart);
     }
 
-    //Check internet connection
-    public static boolean isInternetConnected(){
-        try{
-            InetAddress address = InetAddress.getByName("www.google.com");
-            return address.isReachable(5000);
-        }catch (IOException e){
-            return false;
+    //Verify BVN
+    private void verifyBvn(String mBvn){
+        // Build the API request URL
+        String url = "https://bsscc.ng/api/bvn-validation?BVN=" + mBvn;
+        try {
+
+            // Create a GET request
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(url))
+                    .GET()
+                    .build();
+
+            // Send the request and get the response
+            HttpResponse<String> response = HttpClient.newHttpClient().send(request, HttpResponse.BodyHandlers.ofString());
+
+            // Check for successful response
+            if (response.statusCode() == 200) {
+                dialog.dispose();
+                JOptionPane.showMessageDialog(null, "This BVN has already been used!", "Error", JOptionPane.ERROR_MESSAGE);
+                submit_btn.setText("SUBMIT");
+                submit_btn.setEnabled(true);
+                worker.cancel(true);
+            } else if (response.statusCode() == 500) {
+                if (writeRecord()){
+                    JOptionPane.showMessageDialog(null, "Submitted Successfully.", "Success", JOptionPane.INFORMATION_MESSAGE);
+                    new Index(mUsername).setVisible(true);
+                    dispose();
+                }else{
+                    JOptionPane.showMessageDialog(null,"Unable to submit record","Error", JOptionPane.ERROR_MESSAGE);
+                    submit_btn.setText("SUBMIT");
+                    submit_btn.setEnabled(true);
+                    worker.cancel(true);
+                }
+            } else {
+                System.err.println("Error code: "+ response.statusCode());
+                dialog.dispose();
+            }
+        } catch (IOException | InterruptedException exception) {
+            dialog.dispose();
+            JOptionPane.showMessageDialog(null, "BVN verification failed!", "Error", JOptionPane.ERROR_MESSAGE);
+            submit_btn.setText("VERIFY");
+            submit_btn.setEnabled(true);
+            worker.cancel(true);
         }
     }
+
 }
 

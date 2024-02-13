@@ -49,7 +49,6 @@ public class Photograph extends JFrame {
         ninValue = ninNumberValue;
         biometricPath = mBiometricPath;
 
-
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.insets = new Insets(4, 2, 2,2);
         // Set up frame properties
@@ -216,17 +215,18 @@ public class Photograph extends JFrame {
         ninDataIndicator = createIndicatorLabel("NIN VERIFICATION");
         ninDataIndicator.setBounds(30, 50, 200, 30);
 
-        //bio data indicator
-        bioDataIndicator = createIndicatorLabel("BIO-DATA");
-        bioDataIndicator.setBounds(30, 100, 200, 30);
 
         //biometrics indicator
         biometricDataIndicator = createIndicatorLabel("BIOMETRICS");
-        biometricDataIndicator.setBounds(30, 150, 200, 30);
+        biometricDataIndicator.setBounds(30, 100, 200, 30);
 
         //photograph indicator
         photoDataIndicator = createIndicatorLabel("PHOTOGRAPH");
-        photoDataIndicator.setBounds(30, 200, 200, 30);
+        photoDataIndicator.setBounds(30, 150, 200, 30);
+
+        //bio data indicator
+        bioDataIndicator = createIndicatorLabel("PERSONAL INFORMATION");
+        bioDataIndicator.setBounds(30, 200, 200, 30);
 
         //summary indicator
         summaryDataIndicator = createIndicatorLabel("SUMMARY");
@@ -244,7 +244,7 @@ public class Photograph extends JFrame {
         sideNavHolder.add(printDataIndicator);
 
         //Collect all indicator
-        JLabel[] indicators = {ninDataIndicator, bioDataIndicator, biometricDataIndicator, photoDataIndicator, summaryDataIndicator, printDataIndicator};
+        JLabel[] indicators = {ninDataIndicator, biometricDataIndicator, photoDataIndicator, bioDataIndicator, summaryDataIndicator, printDataIndicator};
 
         //Add corporation icon to bg label
         bg_label.add(navHeaderPane);
@@ -266,7 +266,6 @@ public class Photograph extends JFrame {
         activateIndicator(indicators[0]);
         activateIndicator(indicators[1]);
         activateIndicator(indicators[2]);
-        activateIndicator(indicators[3]);
     }
 
     //Create Indicators button

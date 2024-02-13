@@ -37,15 +37,15 @@ public class Index extends JFrame {
     private final GridBagConstraints gbc = new GridBagConstraints();
     private final JPanel cards = new JPanel(cardLayout);
     private final JPanel homePane = new JPanel(new GridBagLayout());
-    private JButton newRecord;
     private JButton uploadRecords;
-    private JButton logOut;
     private final String FILE_PATH = "src/files/temporal_records.csv";
-    private String username;
+    private final String username;
+    private SwingWorker<Void, Void> worker;
     // Column names
     private final Object[] columnNames = {"NIN", "BVN", "FIRST NAME", "MIDDLE NAME", "LAST NAME", "GENDER", "PHONE NUMBER", "LGA", "DATE CAPTURED"};
     private final Object[][] data = readRecords(FILE_PATH);
     private JTable table;
+    private final CustomDialog dialog = new CustomDialog("Uploading record(s).\n Please wait...", Color.ORANGE);
     public Cloudinary cloudinary = new Cloudinary(ObjectUtils.asMap(
             "cloud_name", "dsssjumkh",
             "api_key", "819342592533741",
@@ -207,7 +207,7 @@ public class Index extends JFrame {
 
         //Nav buttons indicators
         //nin indicator
-        newRecord = createIndicatorLabel("ADD NEW RECORD");
+        JButton newRecord = createIndicatorLabel("ADD NEW RECORD");
         newRecord.setBounds(30, 50, 200, 30);
         newRecord.addActionListener(e ->{
             new NinVerification(username).setVisible(true);
@@ -221,13 +221,31 @@ public class Index extends JFrame {
         uploadRecords.addActionListener(e -> {
             uploadRecords.setText("Uploading, please wait...");
             uploadRecords.setEnabled(false);
-            if (BioData.isInternetConnected()){
-                readAndDeleteRecords();
-            }else{
+            if (InternetConnection.isInternetConnected()) {
+                dialog.setVisible(true);
+                // Create and execute the background task
+                worker = new SwingWorker<>() {
+                            @Override
+                            protected Void doInBackground() {
+                                // Perform your background task here
+                                readAndDeleteRecords();
+                                return null;
+                            }
+
+                            @Override
+                            protected void done() {
+                                // Close the dialog box when the background task is completed
+                                dialog.dispose();
+                                //JOptionPane.showMessageDialog(null, "Task completed!");
+                            }
+                        };
+                worker.execute();
+            } else {
                 JOptionPane.showMessageDialog(null, "No internet connection", "Error", JOptionPane.ERROR_MESSAGE);
                 uploadRecords.setText("UPLOAD RECORD TO SERVER");
                 uploadRecords.setEnabled(true);
             }
+
         });
 
         if (readRecords(FILE_PATH)[0][0] == ""){
@@ -235,9 +253,12 @@ public class Index extends JFrame {
         }
 
         //biometrics indicator
-        logOut = createIndicatorLabel("LOGOUT");
+        JButton logOut = createIndicatorLabel("LOGOUT");
         logOut.setBounds(30, 150, 200, 30);
-        //logOut.addActionListener(e -> deletePendingRecords(FILE_PATH));
+        logOut.addActionListener(e -> {
+            new Login().setVisible(true);
+            dispose();
+        });
 
         sideNavHolder.add(newRecord);
         sideNavHolder.add(uploadRecords);
@@ -350,9 +371,8 @@ public class Index extends JFrame {
     private String cloudinary_photo_path(String path, String publicId){
 
         // Upload the image
-        Map uploadResult;
         try {
-            uploadResult = cloudinary.uploader().upload(path, ObjectUtils.asMap(
+            Map uploadResult = cloudinary.uploader().upload(path, ObjectUtils.asMap(
                     "public_id", publicId
             ));
             return (String) uploadResult.get("url");
@@ -364,6 +384,19 @@ public class Index extends JFrame {
             return null;
         }
 // Get the URL of the uploaded image
+    }
+
+    private String cloudinary_raw_file(String path, String publicId){
+        try {
+            Map uploadResult = cloudinary.uploader().upload(path, ObjectUtils.asMap("resource_type", "raw", "public_id", publicId));
+            return (String) uploadResult.get("url");
+        }catch (IOException e){
+            JOptionPane.showMessageDialog(null, "Unable to establish connection with the server", "Error", JOptionPane.ERROR_MESSAGE);
+            uploadRecords.setText("UPLOAD RECORD TO SERVER");
+            uploadRecords.setEnabled(true);
+            e.printStackTrace();
+            return null;
+        }
     }
 
     //Delete records from CSV file
@@ -379,8 +412,15 @@ public class Index extends JFrame {
 
     //Push record to server
     private int uploadRecord(String[] records){
-        String cloudinaryImagePath = cloudinary_photo_path(records[37], records[0]);
+        //Push image to cloudinary and return path
+        String cloudinaryImagePath = cloudinary_photo_path(records[37], records[0]+"_photograph");
         if (cloudinaryImagePath == null){
+            return 600;
+        }
+
+        //Push biometric to cloudinary and return path
+        String cloudinaryBiometricPath = cloudinary_raw_file(records[38], records[0]+"_biometric");
+        if (cloudinaryBiometricPath == null){
             return 600;
         }
         try {
@@ -392,17 +432,19 @@ public class Index extends JFrame {
             conn.setRequestProperty("Accept" , "application/json");
             conn.setRequestProperty("User-Agent" , "Mozilla");
             String input = String.format(
-                    "{\"NIN\":\"%s\",\"BVN\":\"%s\",\"title\":\"%s\",\"surname\":\"%s\",\"first_name\":\"%s\",\"middle_name\":\"%s\",\"gender\":\"%s\",\"phone_no\":\"%s\",\"email\":\"%s\",\"tribal_mark\":\"%s\",\"hair_colour\":\"%s\",\"hunch_back\":\"%s\",\"soo\":\"%s\",\"lga\":\"%s\",\"ward\":\"%s\",\"dob\":\"%s\",\"age\":\"%s\",\"marital_status\":\"%s\",\"number_of_children\":\"%s\",\"religion\":\"%s\",\"qualification\":\"%s\",\"profession_handwork\":\"%s\",\"is_pensioner\":\"%s\",\"pension_place\":\"%s\",\"disability\":\"%s\",\"nok_surname\":\"%s\",\"nok_firstname\":\"%s\",\"nok_middlename\":\"%s\",\"nok_relationship\":\"%s\",\"nok_phone\":\"%s\",\"bank\":\"%s\",\"account_name\":\"%s\",\"account_no\":\"%s\",\"longitude\":\"%s\",\"latitude\":\"%s\",\"photo\":\"%s\",\"fingerprint\":\"%s\",\"captured_by\":\"%s\",\"date_captured\":\"%s\"}",
-                    records[0], records[1], records[36], records[2], records[4], records[3], records[5], records[6], records[25], records[20], records[18], records[19], records[14], records[7], records[15], records[9], records[10], records[11], records[13], records[12], records[27], records[26], records[29], records[28], records[16], records[21], records[22], records[22], records[24], records[23], records[31], records[32], records[33], records[35], records[36], cloudinaryImagePath, records[38], records[39], records[8]
+                    "{\"NIN\":\"%s\",\"BVN\":\"%s\",\"title\":\"%s\",\"surname\":\"%s\",\"first_name\":\"%s\",\"middle_name\":\"%s\",\"gender\":\"%s\",\"phone_no\":\"%s\",\"email\":\"%s\",\"tribal_mark\":\"%s\",\"hair_colour\":\"%s\",\"hunch_back\":\"%s\",\"soo\":\"%s\",\"lga\":\"%s\",\"ward\":\"%s\",\"dob\":\"%s\",\"age\":\"%s\",\"marital_status\":\"%s\",\"number_of_children\":\"%s\",\"religion\":\"%s\",\"qualification\":\"%s\",\"profession_handwork\":\"%s\",\"is_pensioner\":\"%s\",\"pension_place\":\"%s\",\"disability\":\"%s\",\"nok_surname\":\"%s\",\"nok_firstname\":\"%s\",\"nok_middlename\":\"%s\",\"nok_relationship\":\"%s\",\"nok_phone\":\"%s\",\"bank\":\"%s\",\"account_name\":\"%s\",\"account_no\":\"%s\",\"longitude\":\"%s\",\"latitude\":\"%s\",\"photo\":\"%s\",\"fingerprint\":\"%s\",\"captured_by\":\"%s\",\"date_captured\":\"%s\",\"isdisabled\":\"%s\"}",
+                    records[0], records[1], records[36], records[2], records[4], records[3], records[5], records[6], records[25], records[20], records[18], records[19], records[14], records[7], records[15], records[9], records[10], records[11], records[13], records[12], records[27], records[26], records[29], records[28], records[16], records[21], records[22], records[22], records[24], records[23], records[31], records[32], records[33], records[35], records[36], cloudinaryImagePath, cloudinaryBiometricPath, records[39], records[8], records[16]
             );
             OutputStream os = conn.getOutputStream();
             os.write(input.getBytes());
             os.flush();
             if(conn.getResponseCode() == 200){
                 deleteImageFile(records[0]+".png");
+                deleteBiometricFile(records[38]);
                 return conn.getResponseCode();
             }else{
                 JOptionPane.showMessageDialog(null, "Operation failed!", "Error", JOptionPane.ERROR_MESSAGE);
+                refreshTableData();
             }
             conn.disconnect();
         } catch (Exception e) {
@@ -418,6 +460,7 @@ public class Index extends JFrame {
             List<String[]> records = reader.readAll();
 
             // Iterate over the rows in reverse order
+            int size = records.size();
             for (int i = records.size() - 1; i >= 0; i--) {
                 String[] record = records.get(i);
 
@@ -425,10 +468,13 @@ public class Index extends JFrame {
                 if (uploadRecord(record) == 200){
                     // Delete the last row in the CSV file
                     deleteLastRow();
+                    size--;
+                }else{
+                    worker.cancel(true);
                 }
-
             }
-            if(reader.readAll().size()<1){
+
+            if(size==0){
                 JOptionPane.showMessageDialog(null, "Record uploaded successfully.", "Success", JOptionPane.INFORMATION_MESSAGE);
                 uploadRecords.setText("UPLOAD RECORD TO SERVER");
                 refreshTableData();
@@ -470,4 +516,16 @@ public class Index extends JFrame {
         }
     }
 
+
+    //Delete local biometric file
+    private void deleteBiometricFile(String path){
+        File file = new File(path);
+        if (file.exists()){
+            if (!file.delete()){
+                System.err.println("Unable to delete biometric file at: "+path);
+            }
+        }else{
+            System.err.println("Biometric file does not exist at : "+path);
+        }
+    }
 }

@@ -10,8 +10,12 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.*;
 import java.lang.reflect.InvocationTargetException;
+import java.util.Objects;
 
 public class NewEnrollment extends JPanel implements ActionListener {
+    //colors
+    String primary_color = "#043e45";
+    private final CustomDialog wait_dialog = new CustomDialog("Initializing WebCam...", Color.ORANGE);
 
     public class EnrollmentThread extends Thread implements
             Engine.EnrollmentCallback {
@@ -194,7 +198,6 @@ public class NewEnrollment extends JPanel implements ActionListener {
         ninNumberValue = mNinNumber;
         final int vgap = 5;
         final int width = 380;
-
         BoxLayout layout = new BoxLayout(this, BoxLayout.Y_AXIS);
         setLayout(layout);
 
@@ -212,7 +215,10 @@ public class NewEnrollment extends JPanel implements ActionListener {
 
         add(Box.createVerticalStrut(vgap));
 
-        m_save = new JButton("Save to File");
+        m_save = new JButton("SAVE AND CONTINUE");
+        m_save.setBackground(Color.decode(primary_color));
+        m_save.setSize(160, 40);
+        m_save.setForeground(Color.white);
         m_save.setActionCommand(ACT_SAVE);
         m_save.addActionListener(this);
         m_save.setEnabled(false);
@@ -220,7 +226,6 @@ public class NewEnrollment extends JPanel implements ActionListener {
 
 
         add(Box.createVerticalStrut(vgap));
-
         setOpaque(true);
     }
 
@@ -301,11 +306,10 @@ public class NewEnrollment extends JPanel implements ActionListener {
             }
         }
     }
-
     private void saveDataToFile(byte[] data) {
-        File filePath = new File("src/files/biometrics_files/ninNumberValue");
+        File filePath = new File("src/files/biometrics_files/"+ninNumberValue);
 
-        biometricPath = "src/files/biometrics_files/ninNumberValue";
+        biometricPath = "src/files/biometrics_files/"+ninNumberValue;
         OutputStream output;
         try {
             output = new BufferedOutputStream(new FileOutputStream(
@@ -313,8 +317,9 @@ public class NewEnrollment extends JPanel implements ActionListener {
             output.write(data);
             output.close();
             JOptionPane.showMessageDialog(null, "Biometrics saved successfully.", "Success", JOptionPane.INFORMATION_MESSAGE);
-            new Photograph(ninNumberValue, username, biometricPath).setVisible(true);
-            setVisible(false);
+            wait_dialog.setVisible(true);
+            worker.execute();
+            m_dlgParent.dispose();
         } catch (FileNotFoundException e) {
             // TODO Auto-generated catch block
             e.printStackTrace();
@@ -353,11 +358,29 @@ public class NewEnrollment extends JPanel implements ActionListener {
             MessageBox.DpError("Reader.Close()", e);
         }
     }
-
+    public static Image icon = new ImageIcon(Objects.requireNonNull(NewEnrollment.class.getResource("icons/LOGO.png"))).getImage();
     public static Fmd Run(String mUsername, String ninNumber, Reader reader) {
-        JDialog dlg = new JDialog((JDialog) null, "Enrollment", true);
+        JDialog dlg = new JDialog((JDialog) null, "Biometric Enrollment", true);
+        dlg.setIconImage(icon);
         NewEnrollment enrollment = new NewEnrollment(mUsername, ninNumber, reader);
         enrollment.doModal(dlg);
         return enrollment.enrollmentFMD;
     }
+
+    // Create and execute the background task
+    SwingWorker<Void, Void> worker = new SwingWorker<>() {
+        @Override
+        protected Void doInBackground() {
+            // Perform your background task here
+            new Photograph(ninNumberValue, username, biometricPath).setVisible(true);
+            return null;
+        }
+
+        @Override
+        protected void done() {
+            // Close the dialog box when the background task is completed
+            wait_dialog.dispose();
+            //JOptionPane.showMessageDialog(null, "Task completed!");
+        }
+    };
 }

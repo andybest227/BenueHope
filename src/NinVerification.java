@@ -4,13 +4,21 @@ import javax.swing.*;
 import javax.swing.border.Border;
 import javax.swing.border.LineBorder;
 import java.awt.*;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
+import java.io.IOException;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.util.Objects;
 
 public class NinVerification extends JFrame {
 
     private static ReaderCollection m_collection;
-    private static Reader m_reader;
-    private static Fmd enrollmentFMD;
+
+    private final CustomDialog dialog = new CustomDialog("Verifying NIN...", Color.ORANGE);
+    private SwingWorker<Void, Void> worker;
 
     //colors
     String primary_color = "#043e45";
@@ -35,7 +43,6 @@ public class NinVerification extends JFrame {
     private final JButton verifyNIN = new JButton("VERIFY");
     private final JLabel ninIcon = new JLabel();
     private final String username;
-    JDialog dialog = new JDialog();
     private String ninNumberValue;
     JLabel ninDataIndicator, bioDataIndicator, biometricDataIndicator, photoDataIndicator, summaryDataIndicator, printDataIndicator;
 
@@ -199,23 +206,32 @@ public class NinVerification extends JFrame {
             ninNumberValue = ninNumber.getText();
 
             if(ninNumberValue != null && ninNumberValue.length() == 11){
-                JOptionPane.showMessageDialog(null, "Verification Successful", "Success", JOptionPane.INFORMATION_MESSAGE);
                 verifyNIN.setText("Loading...");
                 verifyNIN.setEnabled(false);
+                if (InternetConnection.isInternetConnected()){
+                    dialog.setVisible(true);
+                    worker = new SwingWorker<>() {
+                        @Override
+                        protected Void doInBackground() {
+                            verifyNin();
+                            return null;
+                        }
 
-                /*LOAD FINGERPRINT SCANNER*/
-                try {
-                    m_collection = UareUGlobal.GetReaderCollection();
-                    m_collection.GetReaders();
-                } catch (UareUException e1) {
-                    // TODO Auto-generated catch block
-                    JOptionPane.showMessageDialog(null, "Error getting collection");
-                    return;
+                        @Override
+                        protected void done() {
+                            //JOptionPane.showMessageDialog(null, "Task completed!");
+                            verifyNIN.setText("VERIFY");
+                            verifyNIN.setEnabled(true);
+                            dialog.dispose();
+                        }
+                    };
+                    worker.execute();
+                }else {
+                    JOptionPane.showMessageDialog(null, "Review your internet connection.", "Network Error", JOptionPane.WARNING_MESSAGE);
+                    verifyNIN.setText("VERIFY");
+                    verifyNIN.setEnabled(true);
+                    dialog.dispose();
                 }
-
-                m_reader = m_collection.get(0);
-                enrollmentFMD = NewEnrollment.Run(username, ninNumberValue, m_reader);
-                dispose();
             }else{
                 JOptionPane.showMessageDialog(null, "Enter a valid NIN", "Error", JOptionPane.ERROR_MESSAGE);
             }
@@ -224,27 +240,54 @@ public class NinVerification extends JFrame {
 
         //Nav buttons indicators
         //nin indicator
-        ninDataIndicator = createIndicatorLabel("NIN VERIFICATION");
+        ninDataIndicator = createIndicatorLabel("BACK HOME");
         ninDataIndicator.setBounds(30, 50, 200, 30);
+        ninDataIndicator.addMouseListener(new MouseListener() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                new Index(username).setVisible(true);
+                dispose();
+            }
 
-        //bio data indicator
-        bioDataIndicator = createIndicatorLabel("BIO-DATA");
-        bioDataIndicator.setBounds(30, 100, 200, 30);
+            @Override
+            public void mousePressed(MouseEvent e) {
+
+            }
+
+            @Override
+            public void mouseReleased(MouseEvent e) {
+
+            }
+
+            @Override
+            public void mouseEntered(MouseEvent e) {
+
+            }
+
+            @Override
+            public void mouseExited(MouseEvent e) {
+
+            }
+        });
 
         //biometrics indicator
-        biometricDataIndicator = createIndicatorLabel("BIOMETRICS");
-        biometricDataIndicator.setBounds(30, 150, 200, 30);
+        biometricDataIndicator = createIndicatorLabel("NIN VERIFICATION");
+        biometricDataIndicator.setBounds(30, 100, 200, 30);
 
         //photograph indicator
-        photoDataIndicator = createIndicatorLabel("PHOTOGRAPH");
-        photoDataIndicator.setBounds(30, 200, 200, 30);
+        photoDataIndicator = createIndicatorLabel("BIOMETRICS");
+        photoDataIndicator.setBounds(30, 150, 200, 30);
+
+        //bio data indicator
+        bioDataIndicator = createIndicatorLabel("PHOTOGRAPH");
+        bioDataIndicator.setBounds(30, 200, 200, 30);
 
         //summary indicator
-        summaryDataIndicator = createIndicatorLabel("SUMMARY");
+        summaryDataIndicator = createIndicatorLabel("PERSONAL INFORMATION");
         summaryDataIndicator.setBounds(30, 250, 200, 30);
 
         //print view indicator
-        printDataIndicator = createIndicatorLabel("PRINT PREVIEW");
+        printDataIndicator = createIndicatorLabel("SUBMIT");
         printDataIndicator.setBounds(30, 300, 200, 30);
 
         sideNavHolder.add(ninDataIndicator);
@@ -289,6 +332,7 @@ public class NinVerification extends JFrame {
         homePanel.add(bg_label);
         add(homePanel);
         activateIndicator(indicators[0]);
+        activateIndicator(indicators[2]);
     }
 
     //Create Indicators button
@@ -311,5 +355,65 @@ public class NinVerification extends JFrame {
         indicator.setForeground(Color.white);
         indicator.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         indicator.setHorizontalAlignment(JLabel.CENTER);
+    }
+
+    //Verify NIN and load biometric interface
+    private void verifyNin(){
+        // Build the API request URL
+        String url = "https://bsscc.ng/api/nin-validation?NIN=" + ninNumberValue;
+        try {
+
+            // Create a GET request
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(url))
+                    .GET()
+                    .build();
+
+            // Send the request and get the response
+            HttpResponse<String> response = HttpClient.newHttpClient().send(request, HttpResponse.BodyHandlers.ofString());
+
+            // Check for successful response
+            if (response.statusCode() == 200) {
+                dialog.dispose();
+                JOptionPane.showMessageDialog(null, "This Citizen has been registered before.", "Warning", JOptionPane.WARNING_MESSAGE);
+                verifyNIN.setText("VERIFY");
+                verifyNIN.setEnabled(true);
+                worker.cancel(true);
+            } else if (response.statusCode() == 500) {
+                /*LOAD FINGERPRINT SCANNER*/
+                try {
+                    m_collection = UareUGlobal.GetReaderCollection();
+                    m_collection.GetReaders();
+                } catch (UareUException e1) {
+                    // TODO Auto-generated catch block
+                    JOptionPane.showMessageDialog(null, "Error getting collection");
+                    verifyNIN.setText("VERIFY");
+                    verifyNIN.setEnabled(true);
+                    worker.cancel(true);
+                }
+                if (m_collection.size() == 0) {
+                    JOptionPane.showMessageDialog(null, "No fingerprint scanner devices found.", "Error", JOptionPane.ERROR_MESSAGE);
+                    verifyNIN.setText("VERIFY");
+                    verifyNIN.setEnabled(true);
+                    worker.cancel(true);
+                }
+                Reader m_reader = m_collection.get(0);
+                NewEnrollment.Run(username, ninNumberValue, m_reader);
+                dispose();
+            } else {
+                dialog.dispose();
+                JOptionPane.showMessageDialog(null, "An error occurred!", "Error", JOptionPane.ERROR_MESSAGE);
+                System.err.println("An error occurred, Code: " + response.statusCode());
+                verifyNIN.setText("VERIFY");
+                verifyNIN.setEnabled(true);
+                worker.cancel(true);
+            }
+        } catch (IOException | InterruptedException exception) {
+            dialog.dispose();
+            JOptionPane.showMessageDialog(null, "An error occurred!", "Error", JOptionPane.ERROR_MESSAGE);
+            verifyNIN.setText("VERIFY");
+            verifyNIN.setEnabled(true);
+            worker.cancel(true);
+        }
     }
 }

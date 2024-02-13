@@ -2,12 +2,19 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
+import java.io.IOException;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.Objects;
 
 public class Login extends JFrame {
     //colors
-    String primary_color = "#043e45";
-    String secondary_color = "#11856b";
+
+    private final String primary_color = "#043e45";
+    private String mUsername;
+    private String mPassword;
+    private SwingWorker<Void, Void> worker;
+    CustomDialog customDialog = new CustomDialog("Authenticating...", Color.ORANGE);
 
     //size
     int width = 800;
@@ -133,6 +140,7 @@ public class Login extends JFrame {
         //Create login Panel header
         JPanel loginPanelHeader = new JPanel();
         loginPanelHeader.setSize(width, 400);
+        String secondary_color = "#11856b";
         loginPanelHeader.setBackground(Color.decode(secondary_color));
         loginPanelHeader.setBounds(200, 100, 400, 50);
         loginPanelHeader.setLayout(null);
@@ -269,19 +277,36 @@ public class Login extends JFrame {
 
         //Handle logging button click
         login_btn.addActionListener(e -> {
-            String mUsername = username.getText();
-            String mPassword = new String(password.getPassword());
+            mUsername = username.getText();
+            mPassword = new String(password.getPassword());
             if (!mUsername.isEmpty() && !mPassword.isEmpty()){
 
                 /*PERFORM ALL LOGGING AUTHENTICATIONS HERE*/
+                //Check Internet connection
+                if (InternetConnection.isInternetConnected()){
+                    worker = new SwingWorker<>() {
+                        @Override
+                        protected Void doInBackground() {
+                            loginUser();
+                            return null;
+                        }
 
-                //If logging is successful
-                new Index(mUsername).setVisible(true);
-                dispose();
+                        @Override
+                        protected void done() {
+                            // Close the dialog box when the background task is completed
+                            customDialog.dispose();
+                            //JOptionPane.showMessageDialog(null, "Task completed!");
+                        }
+                    };
+                    customDialog.setVisible(true);
+                    login_btn.setEnabled(false);
+                    worker.execute();
+                }else{
+                    JOptionPane.showMessageDialog(null, "Please review your internet connection", "Network Error", JOptionPane.WARNING_MESSAGE);
+                }
             }else{
                 JOptionPane.showMessageDialog(null, "Username or Password can not be empty.", "Warning", JOptionPane.WARNING_MESSAGE);
             }
-
         });
     }
 
@@ -292,4 +317,38 @@ public class Login extends JFrame {
         int y = (screenSize.height - getHeight()) / 2;
         setLocation(x, y);
     }
+
+    private void loginUser(){
+        // Perform your background task here
+        String endpoint = "https://bsscc.ng/api/user-validation";
+        Index index = new Index(mUsername);
+        try {
+            URL url = new URL(endpoint + "?email=" + mUsername + "&password=" + mPassword);
+            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+            connection.setRequestMethod("GET");
+
+            int responseCode = connection.getResponseCode();
+
+            if (responseCode == HttpURLConnection.HTTP_OK) {
+                //If logging is successful
+                worker.cancel(true);
+                customDialog.setVisible(false);
+                login_btn.setEnabled(true);
+                index.setVisible(true);
+                dispose();
+            } else {
+                // Handle error response
+                customDialog.setVisible(false);
+                login_btn.setEnabled(true);
+                JOptionPane.showMessageDialog(null, "Login failed!", "Error", JOptionPane.ERROR_MESSAGE);
+                System.err.println("Error code: " + responseCode);
+                worker.cancel(true);
+            }
+
+        } catch (IOException exception) {
+            exception.printStackTrace();
+        }
+    }
+
+    //Handle login in the background
 }
