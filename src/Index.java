@@ -47,9 +47,9 @@ public class Index extends JFrame {
     private JTable table;
     private final CustomDialog dialog = new CustomDialog("Uploading record(s).\n Please wait...", Color.ORANGE);
     public Cloudinary cloudinary = new Cloudinary(ObjectUtils.asMap(
-            "cloud_name", "dsssjumkh",
-            "api_key", "819342592533741",
-            "api_secret", "B9Lyp1tcx6v5ippcAb_HJRsaQlQ"
+            "cloud_name", "",
+            "api_key", "",
+            "api_secret", ""
     ));
 
     public Index(String mUsername){
