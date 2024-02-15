@@ -12,7 +12,6 @@ import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.net.InetAddress;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -45,7 +44,6 @@ public class BioData extends JFrame {
     private ButtonGroup buttonGroup;
     private JTextFieldPlaceholder accountNumber,accountName, bvn;
     private final String cPhotoPath, cBiometricPath, nin, mUsername;
-    private final String FILE_PATH = "src/files/temporal_records.csv";
 
     private final CustomDialog dialog = new CustomDialog("Verifying BVN status...", Color.ORANGE);
     private SwingWorker<Void, Void> worker;
@@ -455,7 +453,6 @@ public class BioData extends JFrame {
 
         //Local government
         localGovernmentComboBox.addItemListener(new LgaComboBoxListener());
-        //updateWardComboBox("Ukum");
         localGovernmentComboBox.setBorder(lineBorder);
         localGovernmentComboBox.setBackground(Color.white);
         localGovernmentComboBox.setSize(100, 50);
@@ -481,7 +478,7 @@ public class BioData extends JFrame {
         bio_dataPane.add(contactAddress, gbc);
 
         //Disability
-        String[] disabilityStatusOptions = {"-disability status-", "None", "Disabled"};
+        String[] disabilityStatusOptions = {"-disability status-", "NO", "YES"};
         String[] disabilities = {"None","Albinism","Blind", "Dumb", "Paralyzed", "Physical Disability", "Mobility Impairment", "Others"};
 
         statusComboBox = new JComboBox<>(disabilityStatusOptions);
@@ -506,7 +503,7 @@ public class BioData extends JFrame {
             String selectedStatus = (String) statusComboBox.getSelectedItem();
 
             // Toggle the visibility of disabilityComboBox based on the selected status
-            disabilityComboBox.setVisible("Disabled".equals(selectedStatus));
+            disabilityComboBox.setVisible("YES".equals(selectedStatus));
         });
 
 
@@ -1949,10 +1946,10 @@ public class BioData extends JFrame {
         indicator.setHorizontalAlignment(JLabel.CENTER);
     }
 
-    private String getGoeCoordinate(){
+   /* private String getGoeCoordinate(){
         String ip_address = "";
         //double [] geoCoordinate = new double[2];
-        /*try {
+        try {
             URL url = new URL("https://freegeoip.app/json/");
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("GET");
@@ -1966,8 +1963,8 @@ public class BioData extends JFrame {
                 JsonObject geoData = new JsonParser().parse(response).getAsJsonObject();
 
                 // Extract relevant information
-                *//*String countryCode = geoData.get("country_code").getAsString();
-                String city = geoData.get("city").getAsString();*//*
+                String countryCode = geoData.get("country_code").getAsString();
+                String city = geoData.get("city").getAsString();
                 double latitude = geoData.get("latitude").getAsDouble();
                 double longitude = geoData.get("longitude").getAsDouble();
 
@@ -1979,7 +1976,7 @@ public class BioData extends JFrame {
             }
         } catch (Exception e) {
             e.printStackTrace();
-        }*/
+        }
         try {
             InetAddress localhost = InetAddress.getLocalHost();
             ip_address = localhost.getHostAddress();
@@ -1999,7 +1996,7 @@ public class BioData extends JFrame {
 
         //197.210.84.90
     }
-
+*/
     private String[] getDetails(){
         String cTitle = (String) title.getSelectedItem();
         assert cTitle != null;
@@ -2237,6 +2234,7 @@ public class BioData extends JFrame {
         if (citizenDetails.length==0){
             return false;
         }
+        String FILE_PATH = "src/files/temporal_records.csv";
         try(CSVWriter writer = new CSVWriter(new FileWriter(FILE_PATH, true))){
             writer.writeNext(citizenDetails);
             status = true;

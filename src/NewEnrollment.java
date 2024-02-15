@@ -1,6 +1,3 @@
-/*public class NewEnrollment {
-}*/
-
 import com.digitalpersona.uareu.Reader;
 import com.digitalpersona.uareu.*;
 
@@ -17,7 +14,7 @@ public class NewEnrollment extends JPanel implements ActionListener {
     String primary_color = "#043e45";
     private final CustomDialog wait_dialog = new CustomDialog("Initializing WebCam...", Color.ORANGE);
 
-    public class EnrollmentThread extends Thread implements
+    public static class EnrollmentThread extends Thread implements
             Engine.EnrollmentCallback {
         public static final String ACT_PROMPT = "enrollment_prompt";
         public static final String ACT_CAPTURE = "enrollment_capture";
@@ -25,7 +22,7 @@ public class NewEnrollment extends JPanel implements ActionListener {
         public static final String ACT_DONE = "enrollment_done";
         public static final String ACT_CANCELED = "enrollment_canceled";
 
-        public class EnrollmentEvent extends ActionEvent {
+        public static class EnrollmentEvent extends ActionEvent {
             private static final long serialVersionUID = 102;
 
             public Reader.CaptureResult capture_result;
@@ -111,7 +108,7 @@ public class NewEnrollment extends JPanel implements ActionListener {
                     }
                 } else {
                     // send capture error
-                    SendToListener(ACT_CAPTURE, null, evt.capture_result,
+                    SendToListener(ACT_CAPTURE, null, null,
                             evt.reader_status, evt.exception);
                 }
             }
@@ -135,15 +132,8 @@ public class NewEnrollment extends JPanel implements ActionListener {
 
             // invoke listener on EDT thread
             try {
-                javax.swing.SwingUtilities.invokeAndWait(new Runnable() {
-                    @Override
-                    public void run() {
-                        m_listener.actionPerformed(evt);
-                    }
-                });
-            } catch (InvocationTargetException e) {
-                e.printStackTrace();
-            } catch (InterruptedException e) {
+                javax.swing.SwingUtilities.invokeAndWait(() -> m_listener.actionPerformed(evt));
+            } catch (InvocationTargetException | InterruptedException e) {
                 e.printStackTrace();
             }
         }
@@ -234,67 +224,55 @@ public class NewEnrollment extends JPanel implements ActionListener {
        if (e.getActionCommand().equals(ACT_SAVE)) {
             saveDataToFile(enrollmentFMD.getData());
             this.m_save.setEnabled(false);
-            return;
-        } else {
+       } else {
 
             EnrollmentThread.EnrollmentEvent evt = (EnrollmentThread.EnrollmentEvent) e;
 
-            if (e.getActionCommand().equals(EnrollmentThread.ACT_PROMPT)) {
-                if (m_bJustStarted) {
-                    m_text.append("Enrollment started\n");
-                    m_text.append("    Put your any finger on the reader\n");
-                } else {
-                    m_text.append("    Put the same finger on the reader\n");
-                }
-                m_bJustStarted = false;
-            } else if (e.getActionCommand()
-                    .equals(EnrollmentThread.ACT_CAPTURE)) {
+           switch (e.getActionCommand()) {
+               case EnrollmentThread.ACT_PROMPT:
+                   if (m_bJustStarted) {
+                       m_text.append("Enrollment started\n");
+                       m_text.append("    Put your finger on the reader\n");
+                   } else {
+                       m_text.append("    Put the same finger on the reader\n");
+                   }
+                   m_bJustStarted = false;
+                   break;
+               case EnrollmentThread.ACT_CAPTURE:
 
-                if (null != evt.capture_result)
-                    if (evt.capture_result.image != null)
-                        m_imagePanel.showImage(evt.capture_result.image);
-                System.out.println("Score is " + evt.capture_result.score);
-                System.out.println("Qualityis " + evt.capture_result.quality);
-
-                if (null != evt.capture_result) {
-                    // MessageBox.BadQuality(evt.capture_result.quality);
-                } else if (null != evt.exception) {
-
-                    // MessageBox.DpError("Capture", evt.exception);
-                } else if (null != evt.reader_status) {
-                    // MessageBox.BadStatus(evt.reader_status);
-                }
-
-                m_bJustStarted = false;
-            } else if (e.getActionCommand().equals(
-                    EnrollmentThread.ACT_FEATURES)) {
-                if (null == evt.exception) {
-                    m_text.append("    fingerprint captured, features extracted\n\n");
-                } else {
-                    MessageBox.DpError("Feature extraction", evt.exception);
-                }
-                m_bJustStarted = false;
-            }
-
-            else if (e.getActionCommand().equals(EnrollmentThread.ACT_DONE)) {
-                if (null == evt.exception) {
-                    String str = String
-                            .format("    Enrollment template created, size: %d\n\n\nPlease save to file or verify.",
-                                    evt.enrollment_fmd.getData().length);
-                    enrollmentFMD = evt.enrollment_fmd;
-                    m_enrollment.cancel();
-                    this.m_save.setEnabled(true);
-                    m_text.append(str);
-                } else {
-                    MessageBox.DpError("Enrollment template creation",
-                            evt.exception);
-                }
-                m_bJustStarted = true;
-            } else if (e.getActionCommand().equals(
-                    EnrollmentThread.ACT_CANCELED)) {
-                // canceled, destroy dialog
-                m_dlgParent.setVisible(false);
-            }
+                   if (null != evt.capture_result)
+                       if (evt.capture_result.image != null)
+                           m_imagePanel.showImage(evt.capture_result.image);
+                   m_bJustStarted = false;
+                   break;
+               case EnrollmentThread.ACT_FEATURES:
+                   if (null == evt.exception) {
+                       m_text.append("    fingerprint captured, features extracted\n\n");
+                   } else {
+                       MessageBox.DpError("Feature extraction", evt.exception);
+                   }
+                   m_bJustStarted = false;
+                   break;
+               case EnrollmentThread.ACT_DONE:
+                   if (null == evt.exception) {
+                       String str = String
+                               .format("    Enrollment template created, size: %d\n\n\nPlease save to file or verify.",
+                                       evt.enrollment_fmd.getData().length);
+                       enrollmentFMD = evt.enrollment_fmd;
+                       m_enrollment.cancel();
+                       this.m_save.setEnabled(true);
+                       m_text.append(str);
+                   } else {
+                       MessageBox.DpError("Enrollment template creation",
+                               evt.exception);
+                   }
+                   m_bJustStarted = true;
+                   break;
+               case EnrollmentThread.ACT_CANCELED:
+                   // canceled, destroy dialog
+                   m_dlgParent.setVisible(false);
+                   break;
+           }
 
             // cancel enrollment if any exception or bad reader status
             if (null != evt.exception) {
@@ -359,12 +337,11 @@ public class NewEnrollment extends JPanel implements ActionListener {
         }
     }
     public static Image icon = new ImageIcon(Objects.requireNonNull(NewEnrollment.class.getResource("icons/LOGO.png"))).getImage();
-    public static Fmd Run(String mUsername, String ninNumber, Reader reader) {
+    public static void Run(String mUsername, String ninNumber, Reader reader) {
         JDialog dlg = new JDialog((JDialog) null, "Biometric Enrollment", true);
         dlg.setIconImage(icon);
         NewEnrollment enrollment = new NewEnrollment(mUsername, ninNumber, reader);
         enrollment.doModal(dlg);
-        return enrollment.enrollmentFMD;
     }
 
     // Create and execute the background task
